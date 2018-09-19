@@ -1,7 +1,33 @@
-DOCKER_IMAGE_TAG = "${env.BUILD_TIMESTAMP}-alpine${env.DOCKER_IMAGE_TAG_SUFFIX}"
+DOCKER_IMAGE_TAG = "${env.BUILD_TIMESTAMP}${env.DOCKER_IMAGE_TAG_SUFFIX}"
 
 node {
     def docker_image
+
+    stage('Validate Environment') {
+        required_env = [ 'DOCKER_IMAGE_NAMESPACE_DEV',
+                         'DOCKER_IMAGE_NAMESPACE_PROD',
+                         'DOCKER_IMAGE_REPOSITORY',
+                         'DOCKER_IMAGE_TAG_SUFFIX',
+                         'DOCKER_REGISTRY_HOSTNAME',
+                         'DOCKER_REGISTRY_URI',
+                         'DOCKER_REGISTRY_CREDENTIALS_ID',
+                         'DOCKER_UCP_URI',
+                         'DOCKER_SERVICE_NAME' ]
+
+
+        fail = 0
+
+        required_env.each { required ->
+            if(env[required] == null) {
+                fail = 1
+                echo "Missing required environment variable: '${required}'" 
+            }
+        }
+
+        if(fail) {
+            error("Missing required environment variables")
+        }
+    }
 
     stage('Clone') {
         /* Let's make sure we have the repository cloned to our workspace */
@@ -68,7 +94,7 @@ node {
     }
 
     stage('Deploy') {
-        withDockerServer([credentialsId: 'jenkins_ucp.prod.arueth.dtcntr.net', uri: env.DOCKER_UCP_URI]) {
+        withDockerServer([credentialsId: env.DOCKER_UCP_CREDENTIALS_ID, uri: env.DOCKER_UCP_URI]) {
             sh "docker service update --image ${env.DOCKER_REGISTRY_HOSTNAME}/${env.DOCKER_IMAGE_NAMESPACE_PROD}/${env.DOCKER_IMAGE_REPOSITORY}:${DOCKER_IMAGE_TAG} ${env.DOCKER_SERVICE_NAME}" 
         }
     }
