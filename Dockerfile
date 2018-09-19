@@ -1,10 +1,10 @@
 # Base image from Docker Hub: 
 # https://hub.docker.com/_/nginx/
-FROM nginx:1.13.7-alpine
+FROM nginx:1.15.3-alpine
 
 COPY html /usr/share/nginx/html
 
-HEALTHCHECK --interval=5s --timeout=5s CMD wget -q -s -U "healthcheck" http://localhost:80/ || exit 1
+HEALTHCHECK --interval=5s --timeout=5s CMD wget -q -O - -U "healthcheck" http://localhost:80/ || exit 1
 
 # The following lines are inherited from nginx base image:
 # https://github.com/nginxinc/docker-nginx/blob/master/mainline/alpine/Dockerfile
