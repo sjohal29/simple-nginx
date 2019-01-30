@@ -1,17 +1,27 @@
-DOCKER_IMAGE_TAG = "${env.BUILD_TIMESTAMP}${env.DOCKER_IMAGE_TAG_SUFFIX}"
+DOCKER_USER = "${env.BRANCH_NAME}"
+DOCKER_IMAGE_NAMESPACE = "se-${DOCKER_USER}"
+DOCKER_IMAGE_REPOSITORY = "simple-nginx"
+DOCKER_IMAGE_REPOSITORY_DEV = "${DOCKER_IMAGE_REPOSITORY}-dev"
+DOCKER_IMAGE_REPOSITORY_PROD = "${DOCKER_IMAGE_REPOSITORY}-prod"
+DOCKER_IMAGE_TAG = "${env.BUILD_TIMESTAMP}"
+
+DOCKER_SERVICE_NAME = "${DOCKER_USER.replace(".", "")}-${DOCKER_IMAGE_REPOSITORY}"
 
 node {
     def docker_image
-
+/*
     stage('Validate Environment') {
-        required_env = [ 'DOCKER_IMAGE_NAMESPACE_DEV',
-                         'DOCKER_IMAGE_NAMESPACE_PROD',
+        required_env = [ 'DOCKER_USER',
+                         'DOCKER_IMAGE_NAMESPACE',
                          'DOCKER_IMAGE_REPOSITORY',
-                         'DOCKER_IMAGE_TAG_SUFFIX',
+                         'DOCKER_IMAGE_REPOSITORY_DEV',
+                         'DOCKER_IMAGE_REPOSITORY_PROD',
+                         'DOCKER_IMAGE_TAG',
                          'DOCKER_REGISTRY_HOSTNAME',
                          'DOCKER_REGISTRY_URI',
                          'DOCKER_REGISTRY_CREDENTIALS_ID',
                          'DOCKER_UCP_URI',
+                         'DOCKER_UCP_CREDENTIALS_ID',
                          'DOCKER_SERVICE_NAME' ]
 
 
@@ -28,7 +38,7 @@ node {
             error("Missing required environment variables")
         }
     }
-
+*/
     stage('Clone') {
         /* Let's make sure we have the repository cloned to our workspace */
 
@@ -39,7 +49,7 @@ node {
         /* This builds the actual image; synonymous to
          * docker build on the command line */
 
-        docker_image = docker.build("${env.DOCKER_IMAGE_NAMESPACE_DEV}/${env.DOCKER_IMAGE_REPOSITORY}")
+        docker_image = docker.build("${DOCKER_IMAGE_NAMESPACE}/${DOCKER_IMAGE_REPOSITORY_DEV}")
     }
 
     stage('Test') {
@@ -52,24 +62,19 @@ node {
     }
 
     stage('Push') {
-        /* Finally, we'll push the image with two tags:
-         * First, the incremental build number from Jenkins
-         * Second, the 'latest' tag.
-         * Pushing multiple tags is cheap, as all the layers are reused. */
-
-        docker.withRegistry(env.DOCKER_REGISTRY_URI, env.DOCKER_REGISTRY_CREDENTIALS_ID) {
+        docker.withRegistry(DOCKER_REGISTRY_URI, DOCKER_REGISTRY_CREDENTIALS_ID) {
             docker_image.push(DOCKER_IMAGE_TAG)
         }
     }
 
     stage('Scan') {
-        httpRequest acceptType: 'APPLICATION_JSON', authentication: env.DOCKER_REGISTRY_CREDENTIALS_ID, contentType: 'APPLICATION_JSON', httpMode: 'POST', ignoreSslErrors: true, responseHandle: 'NONE', url: "${env.DOCKER_REGISTRY_URI}/api/v0/imagescan/scan/${env.DOCKER_IMAGE_NAMESPACE_DEV}/${env.DOCKER_IMAGE_REPOSITORY}/${DOCKER_IMAGE_TAG}/linux/amd64"
+        httpRequest acceptType: 'APPLICATION_JSON', authentication: DOCKER_REGISTRY_CREDENTIALS_ID, contentType: 'APPLICATION_JSON', httpMode: 'POST', ignoreSslErrors: true, responseHandle: 'NONE', url: "${DOCKER_REGISTRY_URI}/api/v0/imagescan/scan/${DOCKER_IMAGE_NAMESPACE}/${DOCKER_IMAGE_REPOSITORY_DEV}/${DOCKER_IMAGE_TAG}/linux/amd64"
 
         def scan_result
 
         def scanning = true
         while(scanning) {
-            def scan_result_response = httpRequest acceptType: 'APPLICATION_JSON', authentication: env.DOCKER_REGISTRY_CREDENTIALS_ID, httpMode: 'GET', ignoreSslErrors: true, responseHandle: 'LEAVE_OPEN', url: "${env.DOCKER_REGISTRY_URI}/api/v0/imagescan/repositories/${env.DOCKER_IMAGE_NAMESPACE_DEV}/${env.DOCKER_IMAGE_REPOSITORY}/${DOCKER_IMAGE_TAG}"
+            def scan_result_response = httpRequest acceptType: 'APPLICATION_JSON', authentication: DOCKER_REGISTRY_CREDENTIALS_ID, httpMode: 'GET', ignoreSslErrors: true, responseHandle: 'LEAVE_OPEN', url: "${DOCKER_REGISTRY_URI}/api/v0/imagescan/repositories/${DOCKER_IMAGE_NAMESPACE}/${DOCKER_IMAGE_REPOSITORY_DEV}/${DOCKER_IMAGE_TAG}"
             scan_result = readJSON text: scan_result_response.content
 
             if (scan_result.size() != 1) {
@@ -90,13 +95,12 @@ node {
     }
 
     stage('Promote') {
-        httpRequest acceptType: 'APPLICATION_JSON', authentication: env.DOCKER_REGISTRY_CREDENTIALS_ID, contentType: 'APPLICATION_JSON', httpMode: 'POST', ignoreSslErrors: true, requestBody: "{\"targetRepository\": \"${env.DOCKER_IMAGE_NAMESPACE_PROD}/${env.DOCKER_IMAGE_REPOSITORY}\", \"targetTag\": \"${DOCKER_IMAGE_TAG}\"}", responseHandle: 'NONE', url: "${env.DOCKER_REGISTRY_URI}/api/v0/repositories/${env.DOCKER_IMAGE_NAMESPACE_DEV}/${env.DOCKER_IMAGE_REPOSITORY}/tags/${DOCKER_IMAGE_TAG}/promotion"
+        httpRequest acceptType: 'APPLICATION_JSON', authentication: DOCKER_REGISTRY_CREDENTIALS_ID, contentType: 'APPLICATION_JSON', httpMode: 'POST', ignoreSslErrors: true, requestBody: "{\"targetRepository\": \"${DOCKER_IMAGE_NAMESPACE}/${DOCKER_IMAGE_REPOSITORY_PROD}\", \"targetTag\": \"${DOCKER_IMAGE_TAG}\"}", responseHandle: 'NONE', url: "${DOCKER_REGISTRY_URI}/api/v0/repositories/${DOCKER_IMAGE_NAMESPACE}/${DOCKER_IMAGE_REPOSITORY_DEV}/tags/${DOCKER_IMAGE_TAG}/promotion"
     }
 
     stage('Deploy') {
-        withDockerServer([credentialsId: env.DOCKER_UCP_CREDENTIALS_ID, uri: env.DOCKER_UCP_URI]) {
-            sh "docker service update --image ${env.DOCKER_REGISTRY_HOSTNAME}/${env.DOCKER_IMAGE_NAMESPACE_PROD}/${env.DOCKER_IMAGE_REPOSITORY}:${DOCKER_IMAGE_TAG} ${env.DOCKER_SERVICE_NAME}" 
+        withDockerServer([credentialsId: DOCKER_UCP_CREDENTIALS_ID, uri: DOCKER_UCP_URI]) {
+            sh "docker service update --image ${DOCKER_REGISTRY_HOSTNAME}/${DOCKER_IMAGE_NAMESPACE}/${DOCKER_IMAGE_REPOSITORY_PROD}:${DOCKER_IMAGE_TAG} ${DOCKER_SERVICE_NAME}" 
         }
     }
 }
-
