@@ -6,7 +6,10 @@ DOCKER_IMAGE_REPOSITORY_DEV = "${DOCKER_IMAGE_REPOSITORY}-dev"
 DOCKER_IMAGE_REPOSITORY_PROD = "${DOCKER_IMAGE_REPOSITORY}-prod"
 DOCKER_IMAGE_TAG = "${env.BUILD_TIMESTAMP}"
 
+DOCKER_APPLICATION_FQDN = "simple-nginx.${DOCKER_USER_CLEAN}.${DOCKER_SWARM_DOMAIN_NAME}"
 DOCKER_SERVICE_NAME = "${DOCKER_USER_CLEAN}-${DOCKER_IMAGE_REPOSITORY}"
+DOCKER_STACK_NAME = "${DOCKER_USER_CLEAN}-simple-nginx"
+DOCKER_UCP_COLLECTION_PATH = "/Shared/Private/${DOCKER_USER}"
 
 node {
     def docker_image
@@ -100,8 +103,17 @@ node {
     }
 
     stage('Deploy') {
-        withDockerServer([credentialsId: DOCKER_UCP_CREDENTIALS_ID, uri: DOCKER_UCP_URI]) {
-            sh "docker service update --image ${DOCKER_REGISTRY_HOSTNAME}/${DOCKER_IMAGE_NAMESPACE}/${DOCKER_IMAGE_REPOSITORY_PROD}:${DOCKER_IMAGE_TAG} ${DOCKER_SERVICE_NAME}" 
+        withEnv(["DOCKER_APPLICATION_FQDN=${DOCKER_APPLICATION_FQDN}",
+                 "DOCKER_REGISTRY_HOSTNAME=${DOCKER_REGISTRY_HOSTNAME}",
+                 "DOCKER_IMAGE_NAMESPACE=${DOCKER_IMAGE_NAMESPACE}",
+                 "DOCKER_IMAGE_REPOSITORY_PROD=${DOCKER_IMAGE_REPOSITORY_PROD}",
+                 "DOCKER_IMAGE_TAG=${DOCKER_IMAGE_TAG}",
+                 "DOCKER_UCP_COLLECTION_PATH=${DOCKER_UCP_COLLECTION_PATH}",
+                 "DOCKER_USER_CLEAN=${DOCKER_USER_CLEAN}"
+                 ]) {
+            withDockerServer([credentialsId: DOCKER_UCP_CREDENTIALS_ID, uri: DOCKER_UCP_URI]) {
+                sh "docker stack deploy -c docker-compose.yml ${DOCKER_STACK_NAME}"
+            }
         }
     }
 }
