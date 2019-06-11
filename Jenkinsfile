@@ -6,10 +6,24 @@ DOCKER_IMAGE_REPOSITORY_DEV = "${DOCKER_IMAGE_REPOSITORY}-dev"
 DOCKER_IMAGE_REPOSITORY_PROD = "${DOCKER_IMAGE_REPOSITORY}-prod"
 DOCKER_IMAGE_TAG = "${env.BUILD_TIMESTAMP}"
 
-DOCKER_APPLICATION_FQDN = "simple-nginx.${DOCKER_USER_CLEAN}.${DOCKER_SWARM_DOMAIN_NAME}"
-DOCKER_SERVICE_NAME = "${DOCKER_USER_CLEAN}-${DOCKER_IMAGE_REPOSITORY}"
-DOCKER_STACK_NAME = "${DOCKER_USER_CLEAN}-simple-nginx"
-DOCKER_UCP_COLLECTION_PATH = "/Shared/Private/${DOCKER_USER}"
+// Available orchestrators = [ "kubernetes" | "swarm" ]
+DOCKER_ORCHESTRATOR = "kubernetes"
+
+if(DOCKER_ORCHESTRATOR.toLowerCase() == "kubernetes"){
+    DOCKER_KUBERNETES_NAMESPACE = "se-${DOCKER_USER_CLEAN}"
+
+    DOCKER_APPLICATION_FQDN = "simple-nginx.${DOCKER_USER_CLEAN}.${DOCKER_KUBE_DOMAIN_NAME}"
+}
+else if (DOCKER_ORCHESTRATOR.toLowerCase() == "swarm"){
+    DOCKER_SERVICE_NAME = "${DOCKER_USER_CLEAN}-${DOCKER_IMAGE_REPOSITORY}"
+    DOCKER_STACK_NAME = "${DOCKER_USER_CLEAN}-simple-nginx"
+    DOCKER_UCP_COLLECTION_PATH = "/Shared/Private/${DOCKER_USER}"
+
+    DOCKER_APPLICATION_FQDN = "simple-nginx.${DOCKER_USER_CLEAN}.${DOCKER_SWARM_DOMAIN_NAME}"
+}
+else {
+    error("Unsupported orchestrator")
+}
 
 node {
     def docker_image
@@ -108,12 +122,24 @@ node {
                  "DOCKER_IMAGE_NAMESPACE=${DOCKER_IMAGE_NAMESPACE}",
                  "DOCKER_IMAGE_REPOSITORY_PROD=${DOCKER_IMAGE_REPOSITORY_PROD}",
                  "DOCKER_IMAGE_TAG=${DOCKER_IMAGE_TAG}",
-                 "DOCKER_UCP_COLLECTION_PATH=${DOCKER_UCP_COLLECTION_PATH}",
                  "DOCKER_USER_CLEAN=${DOCKER_USER_CLEAN}"
                  ]) {
-            withDockerServer([credentialsId: DOCKER_UCP_CREDENTIALS_ID, uri: DOCKER_UCP_URI]) {
-                sh "docker stack deploy -c docker-compose.yml ${DOCKER_STACK_NAME}"
+
+            if(DOCKER_ORCHESTRATOR.toLowerCase() == "kubernetes"){
+                println("Deploying to Kubernetes")
+                withEnv(["DOCKER_KUBERNETES_NAMESPACE=${DOCKER_KUBERNETES_NAMESPACE}"]) {
+                    sh 'CURRENT_DIR=`pwd` && cd /var/jenkins_home/client-bundle && source env.sh && cd ${CURRENT_DIR} && envsubst < kubernetes.yaml | kubectl --namespace=${DOCKER_KUBERNETES_NAMESPACE} apply -f -'
+                }
+            }
+            else if (DOCKER_ORCHESTRATOR.toLowerCase() == "swarm"){
+                println("Deploying to Swarm")
+                withEnv(["DOCKER_UCP_COLLECTION_PATH=${DOCKER_UCP_COLLECTION_PATH}"]) {
+                    withDockerServer([credentialsId: DOCKER_UCP_CREDENTIALS_ID, uri: DOCKER_UCP_URI]) {
+                        sh "docker stack deploy -c docker-compose.yml ${DOCKER_STACK_NAME}"
+                    }
+                }
             }
         }
     }
 }
+
