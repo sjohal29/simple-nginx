@@ -127,8 +127,9 @@ node {
 
             if(DOCKER_ORCHESTRATOR.toLowerCase() == "kubernetes"){
                 println("Deploying to Kubernetes")
-                withEnv(["DOCKER_KUBERNETES_NAMESPACE=${DOCKER_KUBERNETES_NAMESPACE}"]) {
-                    sh 'CURRENT_DIR=`pwd` && cd /var/jenkins_home/client-bundle && source env.sh && cd ${CURRENT_DIR} && envsubst < kubernetes.yaml | kubectl --namespace=${DOCKER_KUBERNETES_NAMESPACE} apply -f -'
+                withEnv(["DOCKER_KUBE_CONTEXT=${DOCKER_KUBE_CONTEXT}", "DOCKER_KUBERNETES_NAMESPACE=${DOCKER_KUBERNETES_NAMESPACE}"]) {
+                    sh 'envsubst < kubernetes.yaml'
+                    sh 'envsubst < kubernetes.yaml | kubectl --context=${DOCKER_KUBE_CONTEXT} --namespace=${DOCKER_KUBERNETES_NAMESPACE} apply -f -'
                 }
             }
             else if (DOCKER_ORCHESTRATOR.toLowerCase() == "swarm"){
