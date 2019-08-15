@@ -1,0 +1,82 @@
+variable:
+  domain: dockerdemo.net
+  region: us-east-1
+  subdomain: cluster
+
+provider:
+  acme:
+    email: david.kramer@docker.com
+    server_url: https://acme-v02.api.letsencrypt.org/directory
+  aws:
+    region: ${region}
+
+cluster:
+  dtr:
+    version: docker/dtr:2.7.1
+  engine:
+    version: ee-stable-19.03.1
+  subscription:
+    id: sub-f982d7d2-6118-405f-8c26-bd51104e2d33
+    license: ../license/dockersolutions_subscription_2019-01-17.lic
+  ucp:
+    username: admin
+    password: DockerEE1234!
+    version: docker/ucp:3.2.0
+
+resource:
+  aws_instance:
+    manager:
+      instance_type: t2.xlarge
+      os: Ubuntu 18.04
+      quantity: 1
+      role_name: linux-ucp
+    registry:
+      instance_type: t2.xlarge
+      os: Ubuntu 18.04
+      quantity: 1
+      role_name: linux-dtr
+    worker_linux_kube:
+      instance_type: t2.xlarge
+      os: Ubuntu 18.04
+      quantity: 1
+      role_name: linux-workers
+      swarm_labels:
+        com.docker.ucp.orchestrator.kubernetes: "true"
+        com.docker.ucp.orchestrator.swarm: "false"
+    worker_linux_swarm:
+      instance_type: t2.xlarge
+      os: Ubuntu 18.04
+      quantity: 1
+      role_name: linux-workers
+  aws_lb:
+    dtr:
+      domain: ${subdomain}.${domain}
+      instances:
+      - registry
+      ports:
+      - 443:443
+    kube:
+      domain: ${subdomain}.${domain}
+      instances:
+      - worker_linux_kube
+      ports:
+      - 80:35080
+      - 443:35443
+    swarm:
+      domain: ${subdomain}.${domain}
+      instances:
+      - worker_linux_swarm
+      ports:
+      - 80:8080
+      - 443:8443
+    ucp:
+      domain: ${subdomain}.${domain}
+      instances:
+      - manager
+      ports:
+      - 443:443
+      - 6443:6443
+  aws_route53_zone:
+    dns:
+      domain: ${domain}
+      subdomain: ${subdomain}
