@@ -17,7 +17,7 @@ cluster:
     version: ee-stable-19.03.1
   subscription:
     id: sub-f982d7d2-6118-405f-8c26-bd51104e2d33
-    license: ../license/dockersolutions_subscription_2019-01-17.lic
+    license: /Users/david/Downloads/docker_subscription.lic
   ucp:
     username: admin
     password: DockerEE1234!
