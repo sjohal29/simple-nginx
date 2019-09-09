@@ -1,7 +1,7 @@
 variable:
   domain: dockerdemo.net
   region: us-east-1
-  subdomain: cluster
+  subdomain: d3
 
 provider:
   acme:
@@ -21,7 +21,7 @@ cluster:
   ucp:
     username: admin
     password: DockerEE1234!
-    version: docker/ucp:3.2.0
+    version: docker/ucp:3.2.1
 
 resource:
   aws_instance:
