@@ -41,17 +41,13 @@ node {
                          'DOCKER_UCP_URI',
                          'DOCKER_UCP_CREDENTIALS_ID',
                          'DOCKER_SERVICE_NAME' ]
-
-
         fail = 0
-
         required_env.each { required ->
             if(env[required] == null) {
                 fail = 1
                 echo "Missing required environment variable: '${required}'" 
             }
         }
-
         if(fail) {
             error("Missing required environment variables")
         }
@@ -127,8 +123,8 @@ node {
 
             if(DOCKER_ORCHESTRATOR.toLowerCase() == "kubernetes"){
                 println("Deploying to Kubernetes")
-                withEnv(["DOCKER_KUBERNETES_NAMESPACE=${DOCKER_KUBERNETES_NAMESPACE}"]) {
-                    sh 'CURRENT_DIR=`pwd` && cd /var/jenkins_home/client-bundle && source env.sh && cd ${CURRENT_DIR} && envsubst < kubernetes.yaml | kubectl --namespace=${DOCKER_KUBERNETES_NAMESPACE} apply -f -'
+                withEnv(["DOCKER_KUBE_CONTEXT=${DOCKER_KUBE_CONTEXT}", "DOCKER_KUBERNETES_NAMESPACE=${DOCKER_KUBERNETES_NAMESPACE}"]) {
+                    sh 'envsubst < kubernetes.yaml | kubectl --context=${DOCKER_KUBE_CONTEXT} --namespace=${DOCKER_KUBERNETES_NAMESPACE} apply -f -'
                 }
             }
             else if (DOCKER_ORCHESTRATOR.toLowerCase() == "swarm"){
@@ -142,4 +138,3 @@ node {
         }
     }
 }
-
