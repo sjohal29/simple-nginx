@@ -1,7 +1,7 @@
 # Base image from Docker Hub:
 # https://hub.docker.com/_/nginx/
-# FROM nginx:1.15.9-alpine
-FROM nginx:1.16.1-alpine
+FROM nginx:1.15.9-alpine
+# FROM nginx:1.16.1-alpine
 
 COPY html /usr/share/nginx/html
 
