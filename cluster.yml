@@ -1,7 +1,7 @@
 variable:
   domain: dockerdemo.net
   region: us-east-1
-  subdomain: d5
+  subdomain: d6
 
 provider:
   acme:
