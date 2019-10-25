@@ -27,7 +27,7 @@ spec:
       volumes:
       - name: k8ssecret
         secret:
-        secretName: marlonruiz-secret-000
+         secretName: marlonruiz-secret-000
 # to here
 ---
 kind: Service
