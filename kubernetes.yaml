@@ -21,7 +21,8 @@ spec:
         volumeMounts:
         # name must match the volume name below
         - name: k8ssecret
-          mountPath: /run/secrets/mysecret
+          mountpath: /etc/secrets-volume
+#          mountPath: /run/secrets/mysecret
 #          mountPath: /run/secrets
   # The secret data is exposed to Containers in the Pod through a Volume.
       volumes:
