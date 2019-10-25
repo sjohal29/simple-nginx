@@ -6,7 +6,7 @@ spec:
   selector:
     matchLabels:
       app: simple-nginx
-  replicas: 2
+  replicas: 1
   template:
     metadata:
       labels:
@@ -17,18 +17,14 @@ spec:
         image: ${DOCKER_REGISTRY_HOSTNAME}/${DOCKER_IMAGE_NAMESPACE}/${DOCKER_IMAGE_REPOSITORY_PROD}:${DOCKER_IMAGE_TAG}
         ports:
         - containerPort: 80
-#   Remove here     
         volumeMounts:
-        # name must match the volume name below
-        - name: k8ssecret
-          mountPath: /run/secrets/mysecret
-#          mountPath: /run/secrets
-  # The secret data is exposed to Containers in the Pod through a Volume.
+        - name: mysecret
+          mountPath: "/var/run/secrets"
+          readOnly: true
       volumes:
-      - name: k8ssecret
+      - name: mysecret
         secret:
          secretName: marlonruiz-secret-000
-# to here
 ---
 kind: Service
 apiVersion: v1
