@@ -17,6 +17,18 @@ spec:
         image: ${DOCKER_REGISTRY_HOSTNAME}/${DOCKER_IMAGE_NAMESPACE}/${DOCKER_IMAGE_REPOSITORY_PROD}:${DOCKER_IMAGE_TAG}
         ports:
         - containerPort: 80
+#   Remove here     
+        volumeMounts:
+        # name must match the volume name below
+        - name: k8ssecret
+          mountPath: /run/secrets/mysecret
+#          mountPath: /run/secrets
+  # The secret data is exposed to Containers in the Pod through a Volume.
+      volumes:
+      - name: k8ssecret
+        secret:
+        secretName: marlonruiz-secret-000
+# to here
 ---
 kind: Service
 apiVersion: v1
