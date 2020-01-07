@@ -66,3 +66,8 @@ repositories:
 - name: simple-nginx
   url: file://C:/<path to simpel-nginx folder>/template/library.yaml
 ```
+
+## Notes
+
+* I had to manually create the `se-mattbentley/simple-nginx-prod` repo in DTR for the promotion to work
+* I had to create a Role Binding to grant the `jenkins` user the `admin` Cluster Role to the `se-mattbentley` namespace
