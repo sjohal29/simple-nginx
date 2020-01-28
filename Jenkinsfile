@@ -74,6 +74,18 @@ node {
         println('Response JSON: ' + scan_result)
     }
 
+    stage('Sign Development Image') {
+        withEnv(["DOCKER_REGISTRY_HOSTNAME=${DOCKER_REGISTRY_HOSTNAME}",
+                 "DOCKER_IMAGE_NAMESPACE=${DOCKER_IMAGE_NAMESPACE_DEV}",
+                 "DOCKER_IMAGE_REPOSITORY=${DOCKER_IMAGE_REPOSITORY}",
+                 "DOCKER_IMAGE_TAG=${DOCKER_IMAGE_TAG}"
+                 ]) {
+            withCredentials([string(credentialsId: DOCKER_TRUST_SIGNER_PASSPHRASE_CREDENTIALS_ID , variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE')]) {
+                sh 'docker trust sign ${DOCKER_REGISTRY_HOSTNAME}/${DOCKER_IMAGE_NAMESPACE}/${DOCKER_IMAGE_REPOSITORY}:${DOCKER_IMAGE_TAG}'
+            }
+        }
+    }
+
     stage('Deploy to Development') {
         withEnv(["DOCKER_APPLICATION_FQDN=${DOCKER_IMAGE_REPOSITORY}.dev.${DOCKER_APPLICATION_DOMAIN}",
                  "DOCKER_REGISTRY_HOSTNAME=${DOCKER_REGISTRY_HOSTNAME}",
@@ -86,7 +98,6 @@ node {
             if(DOCKER_ORCHESTRATOR.toLowerCase() == "kubernetes"){
                 println("Deploying to Kubernetes")
                 withEnv(["DOCKER_KUBE_CONTEXT=${DOCKER_KUBE_CONTEXT}", "DOCKER_KUBERNETES_NAMESPACE=${DOCKER_KUBERNETES_NAMESPACE}-dev"]) {
-                    sh 'envsubst < kubernetes.yaml'
                     sh 'envsubst < kubernetes.yaml | kubectl --context=${DOCKER_KUBE_CONTEXT} --namespace=${DOCKER_KUBERNETES_NAMESPACE} apply -f -'
                 }
             }
@@ -99,7 +110,7 @@ node {
                 }
             }
 
-            println("Application deployed to Development: ${DOCKER_APPLICATION_FQDN}")
+            println("Application deployed to Development: http://${DOCKER_APPLICATION_FQDN}")
         }
     }
 
@@ -111,6 +122,19 @@ node {
 
     stage('Promote') {
         httpRequest acceptType: 'APPLICATION_JSON', authentication: DOCKER_REGISTRY_CREDENTIALS_ID, contentType: 'APPLICATION_JSON', httpMode: 'POST', ignoreSslErrors: true, requestBody: "{\"targetRepository\": \"${DOCKER_IMAGE_NAMESPACE_PROD}/${DOCKER_IMAGE_REPOSITORY}\", \"targetTag\": \"${DOCKER_IMAGE_TAG}\"}", responseHandle: 'NONE', url: "${DOCKER_REGISTRY_URI}/api/v0/repositories/${DOCKER_IMAGE_NAMESPACE_DEV}/${DOCKER_IMAGE_REPOSITORY}/tags/${DOCKER_IMAGE_TAG}/promotion"
+    }
+
+    stage('Sign Production Image') {
+        withEnv(["DOCKER_REGISTRY_HOSTNAME=${DOCKER_REGISTRY_HOSTNAME}",
+                 "DOCKER_IMAGE_NAMESPACE=${DOCKER_IMAGE_NAMESPACE_PROD}",
+                 "DOCKER_IMAGE_REPOSITORY=${DOCKER_IMAGE_REPOSITORY}",
+                 "DOCKER_IMAGE_TAG=${DOCKER_IMAGE_TAG}"
+                 ]) {
+            withCredentials([string(credentialsId: DOCKER_TRUST_SIGNER_PASSPHRASE_CREDENTIALS_ID , variable: 'DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE')]) {
+                sh 'docker pull ${DOCKER_REGISTRY_HOSTNAME}/${DOCKER_IMAGE_NAMESPACE}/${DOCKER_IMAGE_REPOSITORY}:${DOCKER_IMAGE_TAG}'
+                sh 'docker trust sign ${DOCKER_REGISTRY_HOSTNAME}/${DOCKER_IMAGE_NAMESPACE}/${DOCKER_IMAGE_REPOSITORY}:${DOCKER_IMAGE_TAG}'
+            }
+        }
     }
 
     stage('Deploy to Production') {
@@ -125,7 +149,6 @@ node {
             if(DOCKER_ORCHESTRATOR.toLowerCase() == "kubernetes"){
                 println("Deploying to Kubernetes")
                 withEnv(["DOCKER_KUBE_CONTEXT=${DOCKER_KUBE_CONTEXT}", "DOCKER_KUBERNETES_NAMESPACE=${DOCKER_KUBERNETES_NAMESPACE}"]) {
-                    sh 'envsubst < kubernetes.yaml'
                     sh 'envsubst < kubernetes.yaml | kubectl --context=${DOCKER_KUBE_CONTEXT} --namespace=${DOCKER_KUBERNETES_NAMESPACE} apply -f -'
                 }
             }
@@ -138,8 +161,7 @@ node {
                 }
             }
 
-            println("Application deployed to Production: ${DOCKER_APPLICATION_FQDN}")
+            println("Application deployed to Production: http://${DOCKER_APPLICATION_FQDN}")
         }
     }
 }
-
