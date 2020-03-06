@@ -6,7 +6,7 @@ DOCKER_IMAGE_REPOSITORY = "simple-nginx"
 DOCKER_IMAGE_TAG = "${env.BUILD_TIMESTAMP}"
 
 // Available orchestrators = [ "kubernetes" | "swarm" ]
-DOCKER_ORCHESTRATOR = "kubernetes"
+DOCKER_ORCHESTRATOR = "swarm"
 
 if(DOCKER_ORCHESTRATOR.toLowerCase() == "kubernetes"){
     DOCKER_KUBERNETES_NAMESPACE = "${DOCKER_USER_CLEAN}"
